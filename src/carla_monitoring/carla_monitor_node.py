@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import math
+
 import rclpy
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String 
@@ -10,13 +12,13 @@ class CarlaMonitorNode(Node):
     def __init__(self):
         super().__init__('carla_monitor_node')
 
-        self.declare_parameter('warning_radius', 20.0)
-        self.declare_parameter('target_x', 983.5)
-        self.declare_parameter('target_y', 5442.8)  
+        self.declare_parameter('warning_radius', [20.0])
+        self.declare_parameter('target_x', [983.5])
+        self.declare_parameter('target_y', [5442.8])  
 
-        self.target_x = float(self.get_parameter('target_x').value)
-        self.target_y = float(self.get_parameter('target_y').value)
-        self.warning_radius = float(self.get_parameter('warning_radius').value)
+        self.target_x = self.get_parameter('target_x').value
+        self.target_y = self.get_parameter('target_y').value
+        self.warning_radius = self.get_parameter('warning_radius').value
 
         self.subscription = self.create_subscription(
             PoseStamped,
@@ -34,16 +36,25 @@ class CarlaMonitorNode(Node):
     def pose_callback(self, msg):
         x = msg.pose.position.x
         y = msg.pose.position.y
-        z = msg.pose.position.z
+        distances = [
+            math.hypot(
+                x - float(target_x),
+                y - float(target_y),
+            )
+            for target_x, target_y in zip(self.target_x, self.target_y)
+        ]
+        warning_radius = [float(r) for r in self.warning_radius]
+        if not distances:
+            return
 
-        if (x-self.target_x)**2 + (y-self.target_y)**2 < self.warning_radius**2:
-            status_msg = String()
-            status_msg.data = 'WARNING'
-            self.status_publisher.publish(status_msg)
-        else:  
-            status_msg = String()
-            status_msg.data = 'SAFE'
-            self.status_publisher.publish(status_msg)
+        nearest_index, nearest_distance = min(
+            enumerate(distances),
+            key=lambda item: item[1],
+        )
+        status_msg = String()
+        status = 'WARNING' if nearest_distance < warning_radius[nearest_index] else 'SAFE'
+        status_msg.data = status
+        self.status_publisher.publish(status_msg)
 
 
 def main(args=None):

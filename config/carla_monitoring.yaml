@@ -1,0 +1,11 @@
+carla_monitor:
+  ros__parameters:
+    warning_radius: 
+    - 40.0
+    - 35.0
+    target_x: 
+    - -1502.3
+    - -1444.0
+    target_y: 
+    - 3257.2
+    - 3399.6
